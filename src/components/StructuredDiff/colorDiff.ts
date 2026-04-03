@@ -6,11 +6,22 @@ import {
 } from 'color-diff-napi'
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 
-export type ColorModuleUnavailableReason = 'env'
+export type ColorModuleUnavailableReason = 'env' | 'stub'
+
+type RenderableClass = {
+  prototype?: {
+    render?: unknown
+  }
+}
+
+function hasRenderMethod(ctor: RenderableClass): boolean {
+  return typeof ctor.prototype?.render === 'function'
+}
 
 /**
  * Returns a static reason why the color-diff module is unavailable, or null if available.
  * 'env' = disabled via CLAUDE_CODE_SYNTAX_HIGHLIGHT
+ * 'stub' = public stub package installed without a render implementation
  *
  * The TS port of color-diff works in all build modes, so the only way to
  * disable it is via the env var.
@@ -18,6 +29,9 @@ export type ColorModuleUnavailableReason = 'env'
 export function getColorModuleUnavailableReason(): ColorModuleUnavailableReason | null {
   if (isEnvDefinedFalsy(process.env.CLAUDE_CODE_SYNTAX_HIGHLIGHT)) {
     return 'env'
+  }
+  if (!hasRenderMethod(ColorDiff) || !hasRenderMethod(ColorFile)) {
+    return 'stub'
   }
   return null
 }
