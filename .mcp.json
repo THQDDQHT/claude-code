@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "lowcode-tools": {
+      "type": "http",
+      "url": "http://127.0.0.1:14010/lc-agent-service/internal/mcp/lowcode-tools",
+      "headers": {
+        "x-lowcode-app-id": "${LOWCODE_APP_ID:-}",
+        "x-lowcode-entry-id": "${LOWCODE_ENTRY_ID:-}",
+        "authorization": "${LOWCODE_AUTHORIZATION:-}",
+        "cookie": "${LOWCODE_COOKIE:-}",
+        "x-request-id": "${LOWCODE_REQUEST_ID:-}"
+      }
+    }
+  }
+}

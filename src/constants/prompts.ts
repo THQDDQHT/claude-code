@@ -177,7 +177,7 @@ function getSimpleIntroSection(
 ): string {
   // eslint-disable-next-line custom-rules/prompt-spacing
   return `
-You are an interactive agent that helps users ${outputStyleConfig !== null ? 'according to your "Output Style" below, which describes how you should respond to user queries.' : 'with software engineering tasks.'} Use the instructions below and the tools available to you to assist the user.
+You are a dashboard creation orchestrator. Your sole responsibility is to coordinate specialized sub-agents to complete dashboard creation workflows. You do NOT write code, explore codebases, or perform software engineering tasks yourself. You only dispatch tasks to sub-agents using the Agent tool with the appropriate subagent_type parameter.
 
 ${CYBER_RISK_INSTRUCTION}
 IMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.`
@@ -426,6 +426,34 @@ Focus text output on:
 
 If you can say it in one sentence, don't use three. Prefer short, direct sentences over long explanations. This does not apply to code or tool calls.`
 }
+function getOrchestratorSection(): string {
+  return `# Orchestrator behavior
+
+You are a dashboard creation orchestrator. Follow the workflow defined in CLAUDE.md strictly.
+
+## Core rules
+
+1. **Do NOT explore the codebase** — Never use Read, Grep, Bash, Glob, or any file-reading tools to explore source code.
+2. **Do NOT enter planning mode** — Never create plan files, call Write, or use ExitPlanMode.
+3. **Do NOT use generic agents** — Always specify subagent_type when calling the ${AGENT_TOOL_NAME} tool.
+4. **Only dispatch to sub-agents** — Your sole action is calling the ${AGENT_TOOL_NAME} tool with the correct subagent_type.
+
+## How to call sub-agents
+
+Use the ${AGENT_TOOL_NAME} tool with the subagent_type parameter set to the sub-agent name:
+ - Step 1: subagent_type="requirements-analyst" — Analyze user requirements
+ - Step 2: subagent_type="datasource-creator" — Create data sources
+ - Step 3: subagent_type="dashboard-builder" — Build dashboard and components
+ - Step 4: subagent_type="quality-reviewer" — Review quality
+
+## Context passing
+
+Each sub-agent starts with zero context. Include ALL necessary information in the prompt parameter — the sub-agent cannot see your conversation history.
+
+## Execution order
+
+Execute steps strictly in order. Wait for each step to complete before starting the next. Pass the output of each step as input to the next.`
+}
 
 function getSimpleToneAndStyleSection(): string {
   const items = [
@@ -557,16 +585,25 @@ ${CYBER_RISK_INSTRUCTION}`,
   const resolvedDynamicSections =
     await resolveSystemPromptSections(dynamicSections)
 
+  // sdk-cli 编排器模式：跳过代码操作相关指令（Doing tasks / Actions / Using your tools），
+  // 仅保留编排器行为段，防止 LLM 被冗余指令引导去读写代码。
+  const isOrchestratorMode = process.env.CLAUDE_CODE_ENTRYPOINT === 'sdk-cli'
+
   return [
     // --- Static content (cacheable) ---
     getSimpleIntroSection(outputStyleConfig),
     getSimpleSystemSection(),
-    outputStyleConfig === null ||
-    outputStyleConfig.keepCodingInstructions === true
-      ? getSimpleDoingTasksSection()
-      : null,
-    getActionsSection(),
-    getUsingYourToolsSection(enabledTools),
+    // 编排器模式下完全跳过代码操作相关段
+    isOrchestratorMode
+      ? null
+      : outputStyleConfig === null ||
+          outputStyleConfig.keepCodingInstructions === true
+        ? getSimpleDoingTasksSection()
+        : null,
+    isOrchestratorMode ? null : getActionsSection(),
+    isOrchestratorMode ? null : getUsingYourToolsSection(enabledTools),
+    // 编排器行为段仅在 sdk-cli 模式下注入
+    isOrchestratorMode ? getOrchestratorSection() : null,
     getSimpleToneAndStyleSection(),
     getOutputEfficiencySection(),
     // === BOUNDARY MARKER - DO NOT MOVE OR REMOVE ===

@@ -297,6 +297,14 @@ export const getTools = (permissionContext: ToolPermissionContext): Tools => {
     return filterToolsByDenyRules(simpleTools, permissionContext)
   }
 
+  // sdk-cli 编排器模式：主 Agent 只保留 Agent 调度工具和用户交互工具，
+  // 禁用所有文件操作、代码编辑、Bash 等内置工具。
+  // 子 Agent 不受此限制，因为其工具列表由 agent 定义中的 tools 字段独立控制。
+  if (process.env.CLAUDE_CODE_ENTRYPOINT === 'sdk-cli') {
+    const orchestratorTools: Tool[] = [AgentTool, AskUserQuestionTool]
+    return filterToolsByDenyRules(orchestratorTools, permissionContext)
+  }
+
   // Get all base tools and filter out special tools that get added conditionally
   const specialTools = new Set([
     ListMcpResourcesTool.name,

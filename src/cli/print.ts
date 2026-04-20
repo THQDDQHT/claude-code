@@ -22,6 +22,7 @@ import { assembleToolPool, filterToolsByDenyRules } from 'src/tools.js'
 import uniqBy from 'lodash-es/uniqBy.js'
 import { uniq } from 'src/utils/array.js'
 import { mergeAndFilterTools } from 'src/utils/toolPool.js'
+import { filterMcpToolsForMainThread } from 'src/utils/mainThreadMcpVisibility.js'
 import {
   logEvent,
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -797,7 +798,7 @@ export async function runHeadless(
     appState.mcp.tools,
     appState.toolPermissionContext,
   )
-  let filteredTools = [...tools, ...allowedMcpTools]
+  let filteredTools = filterMcpToolsForMainThread([...tools, ...allowedMcpTools])
 
   // When using SDK URL, always use stdio permission prompting to delegate to the SDK
   const effectivePermissionPromptToolName = options.sdkUrl
@@ -1484,6 +1485,7 @@ function runHeadlessStreaming(
       ),
       'name',
     )
+    allTools = filterMcpToolsForMainThread(allTools)
     if (options.permissionPromptToolName) {
       allTools = allTools.filter(
         tool => !toolMatchesName(tool, options.permissionPromptToolName!),

@@ -72,6 +72,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import { errorMessage } from '../../utils/errors.js'
 import { computeFingerprintFromMessages } from '../../utils/fingerprint.js'
 import { captureAPIRequest, logError } from '../../utils/log.js'
+import { logAPIRequestBody, logAPIResponseSummary } from './requestLogger.js'
 import {
   createAssistantAPIErrorMessage,
   createUserMessage,
@@ -1796,6 +1797,7 @@ async function* queryModel(
 
         const params = paramsFromContext(context)
         captureAPIRequest(params, options.querySource) // Capture for bug reports
+        void logAPIRequestBody(params, options.querySource) // 写入完整请求体日志
 
         maxOutputTokens = params.max_tokens
 
@@ -2293,6 +2295,13 @@ async function* queryModel(
             break
           }
           case 'message_stop':
+            // 记录 API 响应摘要（stop_reason、token 消耗、耗时）
+            void logAPIResponseSummary({
+              stopReason: stopReason,
+              usage: usage,
+              model: resolvedModel,
+              durationMs: Date.now() - start,
+            })
             break
         }
 
@@ -2564,7 +2573,10 @@ async function* queryModel(
           attemptNumber = attempt
           maxOutputTokens = tokens
         },
-        params => captureAPIRequest(params, options.querySource),
+        params => {
+          captureAPIRequest(params, options.querySource)
+          void logAPIRequestBody(params, options.querySource)
+        },
         streamRequestId,
       )
 
@@ -2661,7 +2673,10 @@ async function* queryModel(
             attemptNumber = attempt
             maxOutputTokens = tokens
           },
-          params => captureAPIRequest(params, options.querySource),
+          params => {
+            captureAPIRequest(params, options.querySource)
+            void logAPIRequestBody(params, options.querySource)
+          },
           failedRequestId,
         )
 
