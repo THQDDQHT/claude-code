@@ -3,3 +3,4 @@ dist/
 *.node
 .DS_Store
 .ace-tool/
+.claude
